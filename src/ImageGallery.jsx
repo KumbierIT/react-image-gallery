@@ -80,6 +80,7 @@ export default class ImageGallery extends React.Component {
     stopPropagation: PropTypes.bool,
     additionalClass: PropTypes.string,
     useTranslate3D: PropTypes.bool,
+    rotationAngle: PropTypes.number,
   };
 
   static defaultProps = {
@@ -153,6 +154,7 @@ export default class ImageGallery extends React.Component {
         />
       );
     },
+    rotationAngle: 0,
   };
 
   componentWillReceiveProps(nextProps) {
@@ -1119,6 +1121,7 @@ export default class ImageGallery extends React.Component {
                     onSwiped={this._handleOnSwiped}
                     stopPropagation={this.props.stopPropagation}
                     preventDefaultTouchmoveEvent={preventDefaultTouchmoveEvent || scrollingLeftRight}
+                    rotationAngle={this.props.rotationAngle}
                   >
                     <div className='image-gallery-slides'>
                       {slides}
