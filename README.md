@@ -229,6 +229,8 @@ class MyComponent extends React.Component {
       );
     },
   ```
+* `rotationAngle`: Number in degrees, default `0`
+  * Allows proper swipe direction if the image gallery is rotated
 
 
 # Functions
