@@ -85,7 +85,7 @@ var ImageGallery = function (_React$Component) {
     _this._onSliding = function () {
       var isTransitioning = _this.state.isTransitioning;
 
-      window.setTimeout(function () {
+      _this._transitionTimer = window.setTimeout(function () {
         if (isTransitioning) {
           _this.setState({ isTransitioning: !isTransitioning });
         }
@@ -171,17 +171,6 @@ var ImageGallery = function (_React$Component) {
             _this.exitFullScreen();
           }
       }
-    };
-
-    _this._handleMouseLeaveThumbnails = function () {
-      if (_this._thumbnailTimer) {
-        window.clearTimeout(_this._thumbnailTimer);
-        _this._thumbnailTimer = null;
-        if (_this.props.autoPlay === true) {
-          _this.play(false);
-        }
-      }
-      _this.setState({ hovering: false });
     };
 
     _this._handleImageError = function (event) {
@@ -310,6 +299,13 @@ var ImageGallery = function (_React$Component) {
       );
     };
 
+    _this._onThumbnailClick = function (event, index) {
+      _this.slideToIndex(index, event);
+      if (_this.props.onThumbnailClick) {
+        _this.props.onThumbnailClick(event, index);
+      }
+    };
+
     _this.state = {
       currentIndex: props.startIndex,
       thumbsTranslate: 0,
@@ -320,6 +316,11 @@ var ImageGallery = function (_React$Component) {
       isFullscreen: false,
       isPlaying: false
     };
+
+    // Used to update the throttle if slideDuration changes
+    _this._unthrottledSlideToIndex = _this.slideToIndex;
+    _this.slideToIndex = (0, _lodash2.default)(_this._unthrottledSlideToIndex, props.slideDuration, { trailing: false });
+    _this._debounceResize = (0, _lodash4.default)(_this._handleResize, 500);
 
     if (props.lazyLoad) {
       _this._lazyLoaded = [];
@@ -349,7 +350,12 @@ var ImageGallery = function (_React$Component) {
   }, {
     key: 'componentDidUpdate',
     value: function componentDidUpdate(prevProps, prevState) {
-      if (prevProps.thumbnailPosition !== this.props.thumbnailPosition || prevProps.showThumbnails !== this.props.showThumbnails || prevState.thumbnailsWrapperHeight !== this.state.thumbnailsWrapperHeight || prevState.thumbnailsWrapperWidth !== this.state.thumbnailsWrapperWidth) {
+      var thumbnailPosChanged = prevProps.thumbnailPosition !== this.props.thumbnailPosition;
+      var showThumbChanged = prevProps.showThumbnails !== this.props.showThumbnails;
+      var thumbWrapperChanged = prevState.thumbnailsWrapperHeight !== this.state.thumbnailsWrapperHeight || prevState.thumbnailsWrapperWidth !== this.state.thumbnailsWrapperWidth;
+      var itemsChanged = prevProps.items.length !== this.props.items.length;
+
+      if (thumbnailPosChanged || showThumbChanged || thumbWrapperChanged || itemsChanged) {
         this._handleResize();
       }
 
@@ -364,18 +370,6 @@ var ImageGallery = function (_React$Component) {
       if (prevProps.slideDuration !== this.props.slideDuration) {
         this.slideToIndex = (0, _lodash2.default)(this._unthrottledSlideToIndex, this.props.slideDuration, { trailing: false });
       }
-    }
-  }, {
-    key: 'componentWillMount',
-    value: function componentWillMount() {
-      // Used to update the throttle if slideDuration changes
-      this._unthrottledSlideToIndex = this.slideToIndex;
-      this.slideToIndex = (0, _lodash2.default)(this._unthrottledSlideToIndex, this.props.slideDuration, { trailing: false });
-
-      this._handleResize = this._handleResize;
-      this._debounceResize = (0, _lodash4.default)(this._handleResize, 500);
-      this._handleScreenChange = this._handleScreenChange;
-      this._thumbnailDelay = 300;
     }
   }, {
     key: 'componentDidMount',
@@ -412,6 +406,10 @@ var ImageGallery = function (_React$Component) {
 
       if (this._resizeTimer) {
         window.clearTimeout(this._resizeTimer);
+      }
+
+      if (this._transitionTimer) {
+        window.clearTimeout(this._transitionTimer);
       }
     }
   }, {
@@ -543,22 +541,6 @@ var ImageGallery = function (_React$Component) {
       var thumbnailPosition = this.props.thumbnailPosition;
 
       return thumbnailPosition === 'left' || thumbnailPosition === 'right';
-    }
-  }, {
-    key: '_handleMouseOverThumbnails',
-    value: function _handleMouseOverThumbnails(index) {
-      var _this5 = this;
-
-      if (this.props.slideOnThumbnailHover) {
-        this.setState({ hovering: true });
-        if (this._thumbnailTimer) {
-          window.clearTimeout(this._thumbnailTimer);
-          this._thumbnailTimer = null;
-        }
-        this._thumbnailTimer = window.setTimeout(function () {
-          _this5.slideToIndex(index);
-        }, this._thumbnailDelay);
-      }
     }
   }, {
     key: '_setScrollDirection',
@@ -803,7 +785,7 @@ var ImageGallery = function (_React$Component) {
         OR
         The slide is going more than 1 slide left, or right, but not going from
         first to last and not going from last to first
-         There is an edge case where if you go to the first or last slide, when they're
+          There is an edge case where if you go to the first or last slide, when they're
         not left, or right of each other they will try to catch up in the background
         so unless were going from first to last or vice versa we don't want the first
         or last slide to show up during our transition
@@ -927,7 +909,7 @@ var ImageGallery = function (_React$Component) {
   }, {
     key: 'render',
     value: function render() {
-      var _this6 = this;
+      var _this5 = this;
 
       var _state10 = this.state,
           currentIndex = _state10.currentIndex,
@@ -951,75 +933,70 @@ var ImageGallery = function (_React$Component) {
       var bullets = [];
 
       this.props.items.forEach(function (item, index) {
-        var alignment = _this6._getAlignmentClassName(index);
+        var alignment = _this5._getAlignmentClassName(index);
         var originalClass = item.originalClass ? ' ' + item.originalClass : '';
         var thumbnailClass = item.thumbnailClass ? ' ' + item.thumbnailClass : '';
 
-        var renderItem = item.renderItem || _this6.props.renderItem || _this6._renderItem;
+        var renderItem = item.renderItem || _this5.props.renderItem || _this5._renderItem;
 
-        var renderThumbInner = item.renderThumbInner || _this6.props.renderThumbInner || _this6._renderThumbInner;
+        var renderThumbInner = item.renderThumbInner || _this5.props.renderThumbInner || _this5._renderThumbInner;
 
-        var showItem = !_this6.props.lazyLoad || alignment || _this6._lazyLoaded[index];
-        if (showItem && _this6.props.lazyLoad) {
-          _this6._lazyLoaded[index] = true;
+        var showItem = !_this5.props.lazyLoad || alignment || _this5._lazyLoaded[index];
+        if (showItem && _this5.props.lazyLoad) {
+          _this5._lazyLoaded[index] = true;
         }
 
-        var slideStyle = _this6._getSlideStyle(index);
+        var slideStyle = _this5._getSlideStyle(index);
 
         var slide = _react2.default.createElement(
           'div',
           {
             key: index,
             className: 'image-gallery-slide' + alignment + originalClass,
-            style: _extends(slideStyle, _this6.state.style),
-            onClick: _this6.props.onClick,
-            onTouchMove: _this6.props.onTouchMove,
-            onTouchEnd: _this6.props.onTouchEnd,
-            onTouchStart: _this6.props.onTouchStart,
-            onMouseOver: _this6.props.onMouseOver,
-            onMouseLeave: _this6.props.onMouseLeave,
-            role: _this6.props.onClick && 'button'
+            style: _extends(slideStyle, _this5.state.style),
+            onClick: _this5.props.onClick,
+            onTouchMove: _this5.props.onTouchMove,
+            onTouchEnd: _this5.props.onTouchEnd,
+            onTouchStart: _this5.props.onTouchStart,
+            onMouseOver: _this5.props.onMouseOver,
+            onMouseLeave: _this5.props.onMouseLeave,
+            role: _this5.props.onClick && 'button'
           },
           showItem ? renderItem(item) : _react2.default.createElement('div', { style: { height: '100%' } })
         );
 
         if (infinite) {
           // don't add some slides while transitioning to avoid background transitions
-          if (_this6._shouldPushSlideOnInfiniteMode(index)) {
+          if (_this5._shouldPushSlideOnInfiniteMode(index)) {
             slides.push(slide);
           }
         } else {
           slides.push(slide);
         }
 
-        if (_this6.props.showThumbnails) {
+        if (_this5.props.showThumbnails) {
           thumbnails.push(_react2.default.createElement(
             'a',
             {
-              onMouseOver: _this6._handleMouseOverThumbnails.bind(_this6, index),
-              onMouseLeave: _this6._handleMouseLeaveThumbnails,
               key: index,
               role: 'button',
               'aria-pressed': currentIndex === index ? 'true' : 'false',
               'aria-label': 'Go to Slide ' + (index + 1),
               className: 'image-gallery-thumbnail' + (currentIndex === index ? ' active' : '') + thumbnailClass,
               onClick: function onClick(event) {
-                _this6.slideToIndex.call(_this6, index, event);
-                if (_this6.props.onThumbnailClick) {
-                  _this6.props.onThumbnailClick(event, index);
-                }
+                return _this5._onThumbnailClick(event, index);
               }
             },
             renderThumbInner(item)
           ));
         }
 
-        if (_this6.props.showBullets) {
+        if (_this5.props.showBullets) {
           var bulletOnClick = function bulletOnClick(event) {
             if (item.bulletOnClick) {
               item.bulletOnClick({ item: item, itemIndex: index, currentIndex: currentIndex });
             }
-            return _this6.slideToIndex.call(_this6, index, event);
+            return _this5.slideToIndex.call(_this5, index, event);
           };
           bullets.push(_react2.default.createElement('button', {
             key: index,
@@ -1036,7 +1013,7 @@ var ImageGallery = function (_React$Component) {
         'div',
         {
           ref: function ref(i) {
-            return _this6._imageGallerySlideWrapper = i;
+            return _this5._imageGallerySlideWrapper = i;
           },
           className: 'image-gallery-slide-wrapper ' + thumbnailPosition
         },
@@ -1067,7 +1044,8 @@ var ImageGallery = function (_React$Component) {
             onSwiped: this._handleOnSwiped,
             stopPropagation: this.props.stopPropagation,
             preventDefaultTouchmoveEvent: preventDefaultTouchmoveEvent || scrollingLeftRight,
-            rotationAngle: this.props.rotationAngle
+            rotationAngle: this.props.rotationAngle,
+            enableMultiTouch: true
           },
           _react2.default.createElement(
             'div',
@@ -1121,7 +1099,7 @@ var ImageGallery = function (_React$Component) {
         'div',
         {
           ref: function ref(i) {
-            return _this6._imageGallery = i;
+            return _this5._imageGallery = i;
           },
           className: classNames,
           'aria-live': 'polite'
@@ -1143,14 +1121,14 @@ var ImageGallery = function (_React$Component) {
               {
                 className: 'image-gallery-thumbnails',
                 ref: function ref(i) {
-                  return _this6._thumbnailsWrapper = i;
+                  return _this5._thumbnailsWrapper = i;
                 }
               },
               _react2.default.createElement(
                 'div',
                 {
                   ref: function ref(t) {
-                    return _this6._thumbnails = t;
+                    return _this5._thumbnails = t;
                   },
                   className: 'image-gallery-thumbnails-container',
                   style: thumbnailStyle,
@@ -1181,7 +1159,6 @@ ImageGallery.propTypes = {
   showThumbnails: _propTypes2.default.bool,
   showPlayButton: _propTypes2.default.bool,
   showFullscreenButton: _propTypes2.default.bool,
-  slideOnThumbnailHover: _propTypes2.default.bool,
   disableThumbnailScroll: _propTypes2.default.bool,
   disableArrowKeys: _propTypes2.default.bool,
   disableSwipe: _propTypes2.default.bool,
@@ -1231,7 +1208,6 @@ ImageGallery.defaultProps = {
   showThumbnails: true,
   showPlayButton: true,
   showFullscreenButton: true,
-  slideOnThumbnailHover: false,
   disableThumbnailScroll: false,
   disableArrowKeys: false,
   disableSwipe: false,
