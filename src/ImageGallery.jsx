@@ -1097,6 +1097,7 @@ export default class ImageGallery extends React.Component {
                     stopPropagation={this.props.stopPropagation}
                     preventDefaultTouchmoveEvent={preventDefaultTouchmoveEvent || scrollingLeftRight}
                     rotationAngle={this.props.rotationAngle}
+                    enableMultiTouch
                   >
                     <div className='image-gallery-slides'>
                       {slides}
